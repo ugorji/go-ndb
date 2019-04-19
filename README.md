@@ -1,1 +1,1 @@
-# go-ndb
+ndb/README.md
