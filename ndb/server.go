@@ -29,8 +29,8 @@ import (
 	//"container/list"
 	"unsafe"
 
-	"github.com/ugorji/go-common/app"
-	"github.com/ugorji/go-common/db"
+	"github.com/ugorji/go-serverapp/app"
+	"github.com/ugorji/go-serverapp/db"
 	"github.com/ugorji/go-common/logging"
 	"github.com/ugorji/go-common/util"
 	"github.com/ugorji/go-common/zerror"
