@@ -15,19 +15,19 @@ ndb is a data management system built atop a key-value store of bytes.
 
 The key-value store should provide the following:
 
-    - sorted key/value table (ala big table)
-    - Get (with Iteration), Put, Delete
-    - batch writes
+  - sorted key/value table (ala big table)
+  - Get (with Iteration), Put, Delete
+  - batch writes
 
 ndb layers on top of this to provide:
 
-    - data storage and retrieval
-    - querying off indexes
+  - data storage and retrieval
+  - querying off indexes
 
 There are 2 categories of data stored:
 
-    - Entities
-    - Indexes
+  - Entities
+  - Indexes
 
 A single database is used to store all entities and indexes. This affords us
 some level of transactionality. However, the design allows sharding later.
@@ -109,8 +109,8 @@ Each query maps to an index and must have a properly declared index.
 
 Simple queries are supported:
 
-    - Multiple Equality filters
-    - At most one inequality filter at the end
+  - Multiple Equality filters
+  - At most one inequality filter at the end
 
 At write time, we examine the metadata against the configured indexes and
 write the appropriate indexes.
@@ -123,7 +123,7 @@ easy ascending sorting.
 
 The following primitives can be indexed:
 
-    - bool, int8...64, uint8...64, float32, float64, string
+  - bool, int8...64, uint8...64, float32, float64, string
 
 Internally, they are stored as uint8...64, or as []byte (for string). We
 convert appropriately based on the type when storing.
@@ -156,28 +156,28 @@ The index row will have value of uint8 (0) and a key as:
 Note the following rules which apply above to handle variable-length
 strings:
 
-    - Strings must come at the end
-    - Strings are always terminated by a nil byte
+  - Strings must come at the end
+  - Strings are always terminated by a nil byte
 
 From a user call site P.O.V., the following restrictions apply:
 
-    - All indexes must be configured and named
-    - A query runs against a specific index.
-      The index must be inferred from the parameters to the query call.
-    - If you need to sort on a set of fields, ensure they appear last in the properties
-      in the sort order you want.
-      The API only allows you say ascending or descending when you query.
+  - All indexes must be configured and named
+  - A query runs against a specific index.
+    The index must be inferred from the parameters to the query call.
+  - If you need to sort on a set of fields, ensure they appear last in the properties
+    in the sort order you want.
+    The API only allows you say ascending or descending when you query.
 
 
 ## Anatomy of a write
 
 For each key that is written, we write rows for:
 
-    - data (codec encoded typed object)
-    - metadata (codec encoded db.PropertyList).
-    This is done so we can re-create the index later without having the schema of the typed object.
-    - index rows.
-    This is necessary so that we can delete current set of index  rows before creating new ones.
+  - data (codec encoded typed object)
+  - metadata (codec encoded db.PropertyList).
+  This is done so we can re-create the index later without having the schema of the typed object.
+  - index rows.
+  This is necessary so that we can delete current set of index  rows before creating new ones.
 
 A Put operation is like:
 
@@ -195,26 +195,26 @@ A Put operation is like:
 
 When a Put is performed, we will in one atomic update:
 
-    - Look up data and metadata for the key
-    - If found, figure out old set of composite keys
-    - Determine new set of index row keys from newly supplied metadata
-    - Determine the full set of new writes and updates to index rows, entity data and entity metadata
-    - Determine which index rows are no longer valid and should be removed
-    - Do all changes in one write batch
+  - Look up data and metadata for the key
+  - If found, figure out old set of composite keys
+  - Determine new set of index row keys from newly supplied metadata
+  - Determine the full set of new writes and updates to index rows, entity data and entity metadata
+  - Determine which index rows are no longer valid and should be removed
+  - Do all changes in one write batch
 
 Note that we currently store indexes in different databases from the actual
 data. This gives us:
 
-    - faster queries
-    (as we don't have to distribute the query across the different servers)
-    - support for limit, cursors (for paging, etc), etc.
-    This is impossible with distributed queries, as all results must be returned, and sorted in-line.
+  - faster queries
+  (as we don't have to distribute the query across the different servers)
+  - support for limit, cursors (for paging, etc), etc.
+  This is impossible with distributed queries, as all results must be returned, and sorted in-line.
 
 For a delete:
 
-    - Look up metadata
-    - Look up index rows
-    - Delete all in one write batch
+  - Look up metadata
+  - Look up index rows
+  - Delete all in one write batch
 
 
 ## Ensuring Atomic Updates at row-level
@@ -229,9 +229,9 @@ server.
 
 ## For starters, our query support will be limited, and will NOT include
 
-    - multiple inequality filters on a single property
-      (only support single inequality filter)
-    - sort order (Implementing sorting does not makes sense for ndb)
+  - multiple inequality filters on a single property
+    (only support single inequality filter)
+  - sort order (Implementing sorting does not makes sense for ndb)
 
 
 ## Configuration
@@ -239,14 +239,14 @@ server.
 A single configuration file is used called ndb.json. It lives in the root
 directory from which the server is started. It includes:
 
-    - server location (defined later after sharding happens)
+  - server location (defined later after sharding happens)
 
 
 ## Integration with db package
 
 The following things to note:
 
-    - ndb.json keeps mapping of kind to int
+  - ndb.json keeps mapping of kind to int
 
 
 ## Caching
@@ -267,33 +267,33 @@ name.
 
 Note the following limitations once sharding is implemented:
 
-    - Writing to indexes becomes a best effort.
-      Indexes will not be written to the same datastore as the actual data,
-      and so there's a possibility that data was written but index writing failed.
+  - Writing to indexes becomes a best effort.
+    Indexes will not be written to the same datastore as the actual data,
+    and so there's a possibility that data was written but index writing failed.
 
 We chose not to store indexes alongside entities to allow us support:
 
-    - Limit on queries:
-      Limits are impractical if you have to hit 1000 servers
-    - Paging:
-      Paging is practical if we are only looking at a single index
-    - Non-Distributed queries:
-      To do a query, only check one place.
+  - Limit on queries:
+    Limits are impractical if you have to hit 1000 servers
+  - Paging:
+    Paging is practical if we are only looking at a single index
+  - Non-Distributed queries:
+    To do a query, only check one place.
 
 ndb.json will contain information on:
 
-    - indexes (and how/where to access them)
-    - servers and what data they serve (ie which servers serve which shards)
+  - indexes (and how/where to access them)
+  - servers and what data they serve (ie which servers serve which shards)
 
 
 ## Package Contents
 
 This package contains everything related to ndb and napp:
 
-    - Context implementation
-    - low level driver
-    - database management functionality as described above
-    - etc.
+  - Context implementation
+  - low level driver
+  - database management functionality as described above
+  - etc.
 
 There is no extra napp package.
 
@@ -309,13 +309,13 @@ start creating entities on new shards.
 
 In a single server, things are simplified:
 
-    - There might be no need for an external cache server, since the database
-      already caches msgpack-encoded byte streams.
-    - All shards are on single server. There's much less need to have to distribute
-      configuration changes.
-    - Indexes and Data live on same server.
-    - Shards do not move between servers.
-    - Mostly no need to synchronize ndb.json changes across a collection of nodes.
+  - There might be no need for an external cache server, since the database
+    already caches msgpack-encoded byte streams.
+  - All shards are on single server. There's much less need to have to distribute
+    configuration changes.
+  - Indexes and Data live on same server.
+  - Shards do not move between servers.
+  - Mostly no need to synchronize ndb.json changes across a collection of nodes.
 
 In a distributed deployment, none of these hold.
 
@@ -327,8 +327,8 @@ multiple backends.
 
 In a multi-server setup, we will use:
 
-    - 1 database process per group of shards
-    - n memcache processes
+  - 1 database process per group of shards
+  - n memcache processes
 
 We need a way that changes to ndb.json are auto-detected and server
 auto-reloaded, since it could hold information about cache servers, etc.
