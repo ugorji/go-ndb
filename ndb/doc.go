@@ -127,10 +127,10 @@ From a user call site P.O.V., the following restrictions apply:
 Anatomy of a write
 
 For each key that is written, we write rows for:
-- data (codec encoded typed object)
-- metadata (codec encoded db.PropertyList).
+  - data (codec encoded typed object)
+  - metadata (codec encoded db.PropertyList).
   This is done so we can re-create the index later without having the schema of the typed object.
-- index rows. 
+  - index rows. 
   This is necessary so that we can delete current set of index  rows before creating new ones.
 
 A Put operation is like:
@@ -151,9 +151,9 @@ When a Put is performed, we will in one atomic update:
   - Do all changes in one write batch
 
 Note that we currently store indexes in different databases from the actual data. This gives us:
-- faster queries 
+  - faster queries 
   (as we don't have to distribute the query across the different servers)
-- support for limit, cursors (for paging, etc), etc.
+  - support for limit, cursors (for paging, etc), etc.
   This is impossible with distributed queries, as all results must be returned, and sorted in-line.
 
 For a delete:
@@ -234,13 +234,14 @@ to start creating entities on new shards.
 Single Server simplification
 
 In a single server, things are simplified:
-- There might be no need for an external cache server, since the database 
-  already caches msgpack-encoded byte streams.
-- All shards are on single server. There's much less need to have to distribute
-  configuration changes.
-- Indexes and Data live on same server. 
-- Shards do not move between servers. 
-- Mostly no need to synchronize ndb.json changes across a collection of nodes.
+
+  - There might be no need for an external cache server, since the database 
+    already caches msgpack-encoded byte streams.
+  - All shards are on single server. There's much less need to have to distribute
+    configuration changes.
+  - Indexes and Data live on same server. 
+  - Shards do not move between servers. 
+  - Mostly no need to synchronize ndb.json changes across a collection of nodes.
 
 In a distributed deployment, none of these hold.
 
@@ -261,13 +262,13 @@ package ndb
 
 /*
 Notes:
-- Need a way to denote that a new id cannot be retrieved for a specific 
-  type. Actually, leave that as an app specific problem. For example, 
-  blackannex app knows that User and UserProfile should share same id, 
-  so it always creates them together.
-- Considered keeping indexes with the data. It makes writes cheaper, since 
-  writes will typically occur at one place.
-  However, it makes sharding harder, since indexes must stay on one machine.
+  - Need a way to denote that a new id cannot be retrieved for a specific 
+    type. Actually, leave that as an app specific problem. For example, 
+    blackannex app knows that User and UserProfile should share same id, 
+    so it always creates them together.
+  - Considered keeping indexes with the data. It makes writes cheaper, since 
+    writes will typically occur at one place.
+    However, it makes sharding harder, since indexes must stay on one machine.
 
 NOTE:
 =====
