@@ -3,13 +3,14 @@ package ndb
 import (
 	"math"
 	"sort"
+
 	//"fmt"
 	"reflect"
 
 	"github.com/ugorji/go-common/combinationgen"
 	"github.com/ugorji/go-serverapp/db"
 	"github.com/ugorji/go-common/logging"
-	"github.com/ugorji/go-common/util"
+	"github.com/ugorji/go-common/printf"
 )
 
 // var ptrBitSize = uint8(reflect.TypeOf(uint(0)).Bits())
@@ -104,7 +105,7 @@ func (li *dbIndex) numSingles() (i int) {
 }
 
 func (li *dbIndex) subset(ctxId interface{}, c *Index) (li2 *dbIndex) {
-	logging.Trace(ctxId, "indexRowNameValueGen: indexprops: %s", util.ValuePrintfer{c.Properties})
+	logging.Trace(ctxId, "indexRowNameValueGen: indexprops: %s", printf.ValuePrintfer{c.Properties})
 	li2 = new(dbIndex)
 	for _, cp := range c.Properties {
 		i, v := li.get(cp.Name)

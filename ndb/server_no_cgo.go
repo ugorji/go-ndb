@@ -1,4 +1,4 @@
-// +build !cgo,ignore !linux,ignore
+// +build !cgo,!ignore !linux,!ignore
 
 // Deprecated: Now the server is a C++ server and we communicate over the network.
 // This is now effectively ignored during a build.

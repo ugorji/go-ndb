@@ -11,7 +11,8 @@ go get github.com/ugorji/go-ndb/ndb
 # Package Documentation
 
 
-ndb is a data management system built atop a key-value store of bytes.
+Package ndb provides a data management system built atop a key-value store
+of bytes.
 
 The key-value store should provide the following:
 
@@ -340,7 +341,9 @@ const E_METADATA ...
 const D_INDEX ...
 var RpcCodecHandle ...
 var Base64Enc = base64.URLEncoding ...
+func CloseBackends() error
 func KindAndShapeId(types []*Type, kind, shape string) (ikind uint8, ishp uint8)
+func SetupRpcServer(rpcsvr *rpc.Server, ss *Server, qlimitmax uint16, indexes ...*Index) error
 func UpdateEntityIdFromKey(d interface{}, intId int64) (err error)
 func ValidateEntityData(ctxId interface{}, dst interface{}, k KeyParts) (err error)
 type Blob struct{ ... }

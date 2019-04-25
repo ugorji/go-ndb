@@ -14,10 +14,10 @@ import (
 	"github.com/ugorji/go/codec"
 	"github.com/ugorji/go-serverapp/db"
 	"github.com/ugorji/go-common/logging"
+	"github.com/ugorji/go-common/printf"
 	"github.com/ugorji/go-common/safestore"
 	"github.com/ugorji/go-common/simpleblobstore"
-	"github.com/ugorji/go-common/util"
-	"github.com/ugorji/go-common/zerror"
+	"github.com/ugorji/go-common/errorutil"
 )
 
 const (
@@ -157,7 +157,7 @@ func (l *LowLevelDriver) callIt(
 	// separate the keys by shardid.
 	// for each shard, call the function in a goroutine.
 	// collect the results back into dst.
-	var merr zerror.Multi
+	var merr errorutil.Multi
 	m0 = make(map[uint16]*shardArgsResult)
 	nkeys := appKeysToKeys(keys)
 	for i, nk := range nkeys {
@@ -237,7 +237,7 @@ func (l *LowLevelDriver) EncodeKey(ctx app.Context, key app.Key) (s string) {
 }
 
 func (l *LowLevelDriver) DecodeKey(ctx app.Context, s string) (k app.Key, err error) {
-	defer zerror.OnErrorf(1, &err, nil)
+	defer errorutil.OnErrorf(1, &err, nil)
 	return DecodeKey(s)
 }
 
@@ -256,7 +256,7 @@ func (l *LowLevelDriver) NewContext(r *http.Request, appUUID string, seqnum uint
 func (l *LowLevelDriver) GetInfoFromKey(c app.Context, key app.Key,
 ) (kind string, shape string, intId int64, err error) {
 	// println();	println();	debug.PrintStack();	println();
-	defer zerror.OnErrorf(1, &err, nil)
+	defer errorutil.OnErrorf(1, &err, nil)
 	ikey := key.(*Key).V
 	kp := GetKeyParts(ikey)
 	logging.Trace(c, "GetInfoFromKey: KeyParts: %#v", kp)
@@ -281,7 +281,7 @@ func (l *LowLevelDriver) GetInfoFromKey(c app.Context, key app.Key,
 // The shard is the unit of consistency (parents/children live on same shard).
 func (l *LowLevelDriver) NewKey(ctx app.Context, kind string, shape string, intId int64, pkey app.Key,
 ) (k app.Key, err error) {
-	defer zerror.OnErrorf(1, &err, nil)
+	defer errorutil.OnErrorf(1, &err, nil)
 	logging.Trace(ctx, "NewKey: kind: %v, shape: %v, Id: %v, pkey: %v", kind, shape, intId, pkey)
 	kp := KeyParts{
 		Discrim: D_ENTITY,
@@ -352,7 +352,7 @@ func (l *LowLevelDriver) queryAllShards(qArgs *QueryArgs, qs *QueryIterResult) (
 			qsall = append(qsall, qs2)
 		}
 	}
-	var merr zerror.Multi
+	var merr errorutil.Multi
 	for i, ch := range chans {
 		rc := <-ch
 		merr = append(merr, rc.Error)
@@ -365,7 +365,7 @@ func (l *LowLevelDriver) queryAllShards(qArgs *QueryArgs, qs *QueryIterResult) (
 func (l *LowLevelDriver) Query(ctx app.Context, parent app.Key,
 	kind string, opts *app.QueryOpts, filters ...*app.QueryFilter,
 ) (res []app.Key, endCursor string, err error) {
-	defer zerror.OnErrorf(1, &err, nil)
+	defer errorutil.OnErrorf(1, &err, nil)
 	var qs QueryIterResult
 	var npkey *Key
 	if parent != nil {
@@ -421,7 +421,7 @@ func (l *LowLevelDriver) Query(ctx app.Context, parent app.Key,
 }
 
 func (l *LowLevelDriver) DatastoreGet(ctx app.Context, keys []app.Key, dst []interface{}) (err error) {
-	defer zerror.OnErrorf(1, &err, nil)
+	defer errorutil.OnErrorf(1, &err, nil)
 	fn := func(v *shardArgsResult) error {
 		return l.call(v.ShardId, "Get", GetArgs{v.Args.Keys, true}, &v.Result.GetResult)
 	}
@@ -442,7 +442,7 @@ func (l *LowLevelDriver) DatastoreGet(ctx app.Context, keys []app.Key, dst []int
 			} else {
 				errs[idx] = db.Codec.DecodeBytes(gr.Values[i], dst[idx])
 				logging.Trace(ctx, ">>>>>>>> (len: %v, err: %v) res: after unmarshal: %v",
-					len(gr.Values[i]), errs[idx], util.ValuePrintfer{dst[idx]})
+					len(gr.Values[i]), errs[idx], printf.ValuePrintfer{dst[idx]})
 			}
 			if errs[idx] != nil && !foundNonNilErr {
 				foundNonNilErr = true
@@ -456,20 +456,20 @@ func (l *LowLevelDriver) DatastoreGet(ctx app.Context, keys []app.Key, dst []int
 	// 	} else {
 	// 		errs[i] = db.Codec.DecodeBytes(res.Values[i], dst[i])
 	// 		logging.Trace(ctx, ">>>>>>>> (len: %v, err: %v) res: after unmarshal: %v",
-	// 			len(res.Values[i]), errs[i], util.ValuePrintfer{dst[i]})
+	// 			len(res.Values[i]), errs[i], printf.ValuePrintfer{dst[i]})
 	// 	}
 	// 	if errs[i] != nil && !foundNonNilErr {
 	// 		foundNonNilErr = true
 	// 	}
 	// }
 	if foundNonNilErr {
-		err = zerror.Multi(errs)
+		err = errorutil.Multi(errs)
 	}
 	return
 }
 
 func (l *LowLevelDriver) DatastoreDelete(ctx app.Context, keys []app.Key) (err error) {
-	defer zerror.OnErrorf(1, &err, nil)
+	defer errorutil.OnErrorf(1, &err, nil)
 	// res, err := l.db.SvrGet(ctx, appKeysToKeys(keys), true)
 	// err = l.db.SvrDelete(ctx, appKeysToKeys(keys))
 	fn := func(v *shardArgsResult) error {
@@ -481,7 +481,7 @@ func (l *LowLevelDriver) DatastoreDelete(ctx app.Context, keys []app.Key) (err e
 
 func (l *LowLevelDriver) DatastorePut(ctx app.Context, keys []app.Key, dst []interface{}, dprops []interface{},
 ) (keys2 []app.Key, err error) {
-	defer zerror.OnErrorf(1, &err, nil)
+	defer errorutil.OnErrorf(1, &err, nil)
 	//Validate here that if all keys are valid, since we can't validate on the server. (DONE)
 	lkeys := appKeysToKeys(keys)
 	keys2 = make([]app.Key, len(keys))
@@ -538,7 +538,7 @@ func (l *LowLevelDriver) DatastorePut(ctx app.Context, keys []app.Key, dst []int
 }
 
 func NewLowLevelDriver(cfg *Cfg, uuid string, indexes ...*Index) (l *LowLevelDriver, err error) {
-	defer zerror.OnErrorf(1, &err, nil)
+	defer errorutil.OnErrorf(1, &err, nil)
 
 	// s := cfg.Servers[0]
 	// db, err := newClient(uuid, s.NumConn, cfg.QueryLimitMax, s.Addr, cfg.NewEntityShardId, ti)
@@ -586,7 +586,7 @@ func maybeNotFoundError(s string) (err error) {
 	if strings.HasPrefix(s, entityNotFoundMsg) {
 		err = db.EntityNotFoundError(s)
 	} else {
-		err = zerror.String(s)
+		err = errorutil.String(s)
 	}
 	return
 }

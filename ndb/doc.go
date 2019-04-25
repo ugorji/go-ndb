@@ -1,5 +1,5 @@
 /*
-ndb is a data management system built atop a key-value store of bytes.
+Package ndb provides a data management system built atop a key-value store of bytes.
 
 The key-value store should provide the following: 
   - sorted key/value table (ala big table)

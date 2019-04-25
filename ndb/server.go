@@ -1,4 +1,4 @@
-// +build cgo,linux,ignore
+// +build cgo,linux ignore
 
 // Deprecated: Now the server is a C++ server and we communicate over the network.
 // This is now effectively ignored during a build.
@@ -32,8 +32,8 @@ import (
 	"github.com/ugorji/go-serverapp/app"
 	"github.com/ugorji/go-serverapp/db"
 	"github.com/ugorji/go-common/logging"
-	"github.com/ugorji/go-common/util"
-	"github.com/ugorji/go-common/zerror"
+	"github.com/ugorji/go-common/printf"
+	"github.com/ugorji/go-common/errorutil"
 )
 
 // No need to define these here, since all c code already compiled.
@@ -48,7 +48,7 @@ import (
 // #include <ndb.h>
 import "C"
 
-var basicQueriesOnlyErr error = zerror.String(
+var basicQueriesOnlyErr error = errorutil.String(
 	"Queries are not supported for inequality filters (except last filter) or sort order")
 
 type bytesWIndex struct {
@@ -106,7 +106,7 @@ type backend struct {
 }
 
 func (l *backend) IdForNewKey(ikind uint8, x *EntityIdParts) (err error) {
-	defer zerror.OnErrorf(1, &err, nil)
+	defer errorutil.OnErrorf(1, &err, nil)
 	x.Shard = l.shardId
 	kp := KeyParts{Discrim: D_IDGEN, EntityIdParts: EntityIdParts{Shard: x.Shard}, Kind: ikind}
 	bs := Key{V: kp.V()}.Bytes()
@@ -125,7 +125,7 @@ func (l *backend) IdForNewKey(ikind uint8, x *EntityIdParts) (err error) {
 // 	opts *app.QueryOpts, filters ...*app.QueryFilter,
 // ) (qs QueryIterResult, err error) {
 func (l *backend) Query(args *QueryArgs, qs *QueryIterResult) (err error) {
-	defer zerror.OnErrorf(1, &err, nil)
+	defer errorutil.OnErrorf(1, &err, nil)
 	pkey, kind, opts, filters := args.ParentKey, args.Kind, args.Opts, args.Filters
 	logging.Trace(nil, "Running Query: shard %d, pkey: %v, kind: %v, opts: %v, filters: %v",
 		l.shardId, pkey, kind, opts, filters)
@@ -229,7 +229,7 @@ func (l *backend) Query(args *QueryArgs, qs *QueryIterResult) (err error) {
 	defer C.ndb_release(&xReqKey, 1)
 	logging.Trace(nil, "C.ndb_query completed (with %d results) in %v", xNumRes, time.Since(time0))
 	if xErr != nil {
-		err = zerror.String(C.GoStringN(xErr.v, C.int(xErr.len)))
+		err = errorutil.String(C.GoStringN(xErr.v, C.int(xErr.len)))
 		return
 	}
 
@@ -358,7 +358,7 @@ func (l *backend) appendIndexRows(hkssptr *[][]byte, irkbss [][]byte) (err error
 		for i := range errs {
 			errs[i] = maybeNotFoundError(res.Errors[i])
 		}
-		err = zerror.Multi(errs)
+		err = errorutil.Multi(errs)
 		return
 	}
 	for i := range res.Values {
@@ -377,7 +377,7 @@ func (l *backend) appendIndexRows(hkssptr *[][]byte, irkbss [][]byte) (err error
 }
 
 func (l *backend) SvrDelete(keys []*Key) (err error) {
-	defer zerror.OnErrorf(1, &err, nil)
+	defer errorutil.OnErrorf(1, &err, nil)
 	// re-organized to make only 2 C calls.
 	hkss := make([][]byte, 0, len(keys)*4)
 	irkbss := make([][]byte, 0, len(keys))
@@ -403,10 +403,10 @@ func (l *backend) oneOffPut(key []byte, val []byte) (err error) {
 
 func (l *backend) SvrPut(keys []*Key, dst [][]byte, dprops []*db.PropertyList,
 ) (err error) {
-	defer zerror.OnErrorf(1, &err, nil)
+	defer errorutil.OnErrorf(1, &err, nil)
 
 	logging.Trace(nil, "DB.PUT: KEYS: (%d) %v, dst: (%d) %v, dprops: (%d) %v",
-		len(keys), keys, len(dst), util.ValuePrintfer{dst}, len(dprops), util.ValuePrintfer{dprops})
+		len(keys), keys, len(dst), printf.ValuePrintfer{dst}, len(dprops), printf.ValuePrintfer{dprops})
 
 	hkss := make([][]byte, 0, len(keys)*4)
 	hvss := make([][]byte, 0, len(keys)*4)
@@ -507,7 +507,7 @@ func (l *backend) svrUpdate(putkeys [][]byte, putvalues [][]byte, delkeys [][]by
 	logging.Trace(nil, "C.ndb_update completed in %v", time.Since(time0))
 
 	if xErr != nil {
-		err = zerror.String(C.GoStringN(xErr.v, C.int(xErr.len)))
+		err = errorutil.String(C.GoStringN(xErr.v, C.int(xErr.len)))
 		return
 	}
 
@@ -517,7 +517,7 @@ func (l *backend) svrUpdate(putkeys [][]byte, putvalues [][]byte, delkeys [][]by
 //----------------------------------------------------------
 
 func (l *backend) nextLocalId(bs []byte) (nextid uint32, err error) {
-	defer zerror.OnErrorf(1, &err, nil)
+	defer errorutil.OnErrorf(1, &err, nil)
 
 	var xVal C.uint64_t
 	var xErr *C.slice_bytes_t
@@ -533,7 +533,7 @@ func (l *backend) nextLocalId(bs []byte) (nextid uint32, err error) {
 	logging.Trace(nil, "C.ndb_incr_decr completed in %v", time.Since(time0))
 
 	if xErr != nil {
-		err = zerror.String(C.GoStringN(xErr.v, C.int(xErr.len)))
+		err = errorutil.String(C.GoStringN(xErr.v, C.int(xErr.len)))
 		return
 	}
 

@@ -16,7 +16,7 @@ import (
 	"github.com/ugorji/go-serverapp/app"
 	"github.com/ugorji/go-serverapp/db"
 	"github.com/ugorji/go-common/logging"
-	"github.com/ugorji/go-common/zerror"
+	"github.com/ugorji/go-common/errorutil"
 )
 
 //Entry Types
@@ -326,7 +326,7 @@ func GetKeyParts(ikey uint64) (x KeyParts) {
 //  - K.Discrim must be ENTITY
 //  - k.Entry must be DATA
 func ValidateEntityData(ctxId interface{}, dst interface{}, k KeyParts) (err error) {
-	defer zerror.OnErrorf(1, &err, nil)
+	defer errorutil.OnErrorf(1, &err, nil)
 	logging.Trace(ctxId, "Validating: KeyParts: %#v", k)
 	fnErr := func(tag string) {
 		err = fmt.Errorf("%sInvalid Key: %#v", tag, k)
@@ -378,7 +378,7 @@ func KindAndShapeId(types []*Type, kind, shape string) (ikind uint8, ishp uint8)
 }
 
 func UpdateEntityIdFromKey(d interface{}, intId int64) (err error) {
-	defer zerror.OnErrorf(1, &err, nil)
+	defer errorutil.OnErrorf(1, &err, nil)
 	tm, err := db.GetStructMeta(d)
 	if err != nil {
 		return
@@ -398,19 +398,19 @@ func UpdateEntityIdFromKey(d interface{}, intId int64) (err error) {
 }
 
 // func Marshal(out *[]byte, v interface{}) (err error) {
-// 	defer zerror.OnErrorf(1, &err, nil)
+// 	defer errorutil.OnErrorf(1, &err, nil)
 // 	return db.Codec.EncodeBytes(out, v)
 // 	// return codec.NewEncoderBytes(out, encOpts).Encode(v)
 // }
 
 // func Unmarshal(in []byte, v interface{}) (err error) {
-// 	defer zerror.OnErrorf(1, &err, nil)
+// 	defer errorutil.OnErrorf(1, &err, nil)
 // 	return db.Codec.DecodeBytes(in, v)
 // 	// return msgpack.NewDecoderBytes(in, decOpts).Decode(v)
 // }
 
 func ReadConfig(cfgFile string) (cfg *Cfg, err error) {
-	defer zerror.OnErrorf(1, &err, nil)
+	defer errorutil.OnErrorf(1, &err, nil)
 	if cfgFile == "" {
 		cfgFile = "ndb.json"
 	}
