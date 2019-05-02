@@ -106,7 +106,7 @@ type backend struct {
 }
 
 func (l *backend) IdForNewKey(ikind uint8, x *EntityIdParts) (err error) {
-	defer errorutil.OnErrorf(1, &err, nil)
+	defer errorutil.OnError(&err)
 	x.Shard = l.shardId
 	kp := KeyParts{Discrim: D_IDGEN, EntityIdParts: EntityIdParts{Shard: x.Shard}, Kind: ikind}
 	bs := Key{V: kp.V()}.Bytes()
@@ -125,7 +125,7 @@ func (l *backend) IdForNewKey(ikind uint8, x *EntityIdParts) (err error) {
 // 	opts *app.QueryOpts, filters ...*app.QueryFilter,
 // ) (qs QueryIterResult, err error) {
 func (l *backend) Query(args *QueryArgs, qs *QueryIterResult) (err error) {
-	defer errorutil.OnErrorf(1, &err, nil)
+	defer errorutil.OnError(&err)
 	pkey, kind, opts, filters := args.ParentKey, args.Kind, args.Opts, args.Filters
 	logging.Trace(nil, "Running Query: shard %d, pkey: %v, kind: %v, opts: %v, filters: %v",
 		l.shardId, pkey, kind, opts, filters)
@@ -377,7 +377,7 @@ func (l *backend) appendIndexRows(hkssptr *[][]byte, irkbss [][]byte) (err error
 }
 
 func (l *backend) SvrDelete(keys []*Key) (err error) {
-	defer errorutil.OnErrorf(1, &err, nil)
+	defer errorutil.OnError(&err)
 	// re-organized to make only 2 C calls.
 	hkss := make([][]byte, 0, len(keys)*4)
 	irkbss := make([][]byte, 0, len(keys))
@@ -403,7 +403,7 @@ func (l *backend) oneOffPut(key []byte, val []byte) (err error) {
 
 func (l *backend) SvrPut(keys []*Key, dst [][]byte, dprops []*db.PropertyList,
 ) (err error) {
-	defer errorutil.OnErrorf(1, &err, nil)
+	defer errorutil.OnError(&err)
 
 	logging.Trace(nil, "DB.PUT: KEYS: (%d) %v, dst: (%d) %v, dprops: (%d) %v",
 		len(keys), keys, len(dst), printf.ValuePrintfer{dst}, len(dprops), printf.ValuePrintfer{dprops})
@@ -517,7 +517,7 @@ func (l *backend) svrUpdate(putkeys [][]byte, putvalues [][]byte, delkeys [][]by
 //----------------------------------------------------------
 
 func (l *backend) nextLocalId(bs []byte) (nextid uint32, err error) {
-	defer errorutil.OnErrorf(1, &err, nil)
+	defer errorutil.OnError(&err)
 
 	var xVal C.uint64_t
 	var xErr *C.slice_bytes_t

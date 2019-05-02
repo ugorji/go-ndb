@@ -237,7 +237,7 @@ func (l *LowLevelDriver) EncodeKey(ctx app.Context, key app.Key) (s string) {
 }
 
 func (l *LowLevelDriver) DecodeKey(ctx app.Context, s string) (k app.Key, err error) {
-	defer errorutil.OnErrorf(1, &err, nil)
+	defer errorutil.OnError(&err)
 	return DecodeKey(s)
 }
 
@@ -256,7 +256,7 @@ func (l *LowLevelDriver) NewContext(r *http.Request, appUUID string, seqnum uint
 func (l *LowLevelDriver) GetInfoFromKey(c app.Context, key app.Key,
 ) (kind string, shape string, intId int64, err error) {
 	// println();	println();	debug.PrintStack();	println();
-	defer errorutil.OnErrorf(1, &err, nil)
+	defer errorutil.OnError(&err)
 	ikey := key.(*Key).V
 	kp := GetKeyParts(ikey)
 	logging.Trace(c, "GetInfoFromKey: KeyParts: %#v", kp)
@@ -281,7 +281,7 @@ func (l *LowLevelDriver) GetInfoFromKey(c app.Context, key app.Key,
 // The shard is the unit of consistency (parents/children live on same shard).
 func (l *LowLevelDriver) NewKey(ctx app.Context, kind string, shape string, intId int64, pkey app.Key,
 ) (k app.Key, err error) {
-	defer errorutil.OnErrorf(1, &err, nil)
+	defer errorutil.OnError(&err)
 	logging.Trace(ctx, "NewKey: kind: %v, shape: %v, Id: %v, pkey: %v", kind, shape, intId, pkey)
 	kp := KeyParts{
 		Discrim: D_ENTITY,
@@ -365,7 +365,7 @@ func (l *LowLevelDriver) queryAllShards(qArgs *QueryArgs, qs *QueryIterResult) (
 func (l *LowLevelDriver) Query(ctx app.Context, parent app.Key,
 	kind string, opts *app.QueryOpts, filters ...*app.QueryFilter,
 ) (res []app.Key, endCursor string, err error) {
-	defer errorutil.OnErrorf(1, &err, nil)
+	defer errorutil.OnError(&err)
 	var qs QueryIterResult
 	var npkey *Key
 	if parent != nil {
@@ -421,7 +421,7 @@ func (l *LowLevelDriver) Query(ctx app.Context, parent app.Key,
 }
 
 func (l *LowLevelDriver) DatastoreGet(ctx app.Context, keys []app.Key, dst []interface{}) (err error) {
-	defer errorutil.OnErrorf(1, &err, nil)
+	defer errorutil.OnError(&err)
 	fn := func(v *shardArgsResult) error {
 		return l.call(v.ShardId, "Get", GetArgs{v.Args.Keys, true}, &v.Result.GetResult)
 	}
@@ -469,7 +469,7 @@ func (l *LowLevelDriver) DatastoreGet(ctx app.Context, keys []app.Key, dst []int
 }
 
 func (l *LowLevelDriver) DatastoreDelete(ctx app.Context, keys []app.Key) (err error) {
-	defer errorutil.OnErrorf(1, &err, nil)
+	defer errorutil.OnError(&err)
 	// res, err := l.db.SvrGet(ctx, appKeysToKeys(keys), true)
 	// err = l.db.SvrDelete(ctx, appKeysToKeys(keys))
 	fn := func(v *shardArgsResult) error {
@@ -481,7 +481,7 @@ func (l *LowLevelDriver) DatastoreDelete(ctx app.Context, keys []app.Key) (err e
 
 func (l *LowLevelDriver) DatastorePut(ctx app.Context, keys []app.Key, dst []interface{}, dprops []interface{},
 ) (keys2 []app.Key, err error) {
-	defer errorutil.OnErrorf(1, &err, nil)
+	defer errorutil.OnError(&err)
 	//Validate here that if all keys are valid, since we can't validate on the server. (DONE)
 	lkeys := appKeysToKeys(keys)
 	keys2 = make([]app.Key, len(keys))
@@ -538,7 +538,7 @@ func (l *LowLevelDriver) DatastorePut(ctx app.Context, keys []app.Key, dst []int
 }
 
 func NewLowLevelDriver(cfg *Cfg, uuid string, indexes ...*Index) (l *LowLevelDriver, err error) {
-	defer errorutil.OnErrorf(1, &err, nil)
+	defer errorutil.OnError(&err)
 
 	// s := cfg.Servers[0]
 	// db, err := newClient(uuid, s.NumConn, cfg.QueryLimitMax, s.Addr, cfg.NewEntityShardId, ti)
