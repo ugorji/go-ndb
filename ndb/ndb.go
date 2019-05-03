@@ -15,9 +15,11 @@ import (
 
 	"github.com/ugorji/go-serverapp/app"
 	"github.com/ugorji/go-serverapp/db"
-	"github.com/ugorji/go-common/logging"
 	"github.com/ugorji/go-common/errorutil"
+	"github.com/ugorji/go-common/logging"
 )
+
+var log = logging.PkgLogger()
 
 //Entry Types
 const (
@@ -325,9 +327,10 @@ func GetKeyParts(ikey uint64) (x KeyParts) {
 //    (except dst is a primitive type, and if so, itype must be in reserved range).
 //  - K.Discrim must be ENTITY
 //  - k.Entry must be DATA
-func ValidateEntityData(ctxId interface{}, dst interface{}, k KeyParts) (err error) {
+func ValidateEntityData(ctxId app.Context, dst interface{}, k KeyParts) (err error) {
 	defer errorutil.OnError(&err)
-	logging.Trace(ctxId, "Validating: KeyParts: %#v", k)
+	cctx := app.CtxCtx(ctxId)
+	log.Debug(cctx, "Validating: KeyParts: %#v", k)
 	fnErr := func(tag string) {
 		err = fmt.Errorf("%sInvalid Key: %#v", tag, k)
 	}

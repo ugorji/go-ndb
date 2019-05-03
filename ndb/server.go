@@ -70,31 +70,31 @@ type rpcbackend struct {
 }
 
 func (l rpcbackend) Get(args GetArgs, res *GetResult) (err error) {
-	logging.Trace(nil, "rpcbackend.Get")
+	log.Debug(nil, "rpcbackend.Get")
 	return l.b.SvrGet(args.Keys, args.ErrIfNotFound, res)
 }
 
 func (l rpcbackend) Delete(args []*Key, res *bool) (err error) {
-	logging.Trace(nil, "rpcbackend.Delete")
+	log.Debug(nil, "rpcbackend.Delete")
 	err = l.b.SvrDelete(args)
 	*res = err == nil
 	return
 }
 
 func (l rpcbackend) Put(args PutArgs, res *bool) (err error) {
-	logging.Trace(nil, "rpcbackend.Put")
+	log.Debug(nil, "rpcbackend.Put")
 	err = l.b.SvrPut(args.Keys, args.Values, args.Props)
 	*res = err == nil
 	return
 }
 
 func (l rpcbackend) IdForNewKey(ikind uint8, x *EntityIdParts) (err error) {
-	logging.Trace(nil, "rpcbackend.IdForNewKey")
+	log.Debug(nil, "rpcbackend.IdForNewKey")
 	return l.b.IdForNewKey(ikind, x)
 }
 
 func (l rpcbackend) Query(args *QueryArgs, qs *QueryIterResult) (err error) {
-	logging.Trace(nil, "rpcbackend.Query")
+	log.Debug(nil, "rpcbackend.Query")
 	return l.b.Query(args, qs)
 }
 
@@ -115,7 +115,7 @@ func (l *backend) IdForNewKey(ikind uint8, x *EntityIdParts) (err error) {
 	if err != nil {
 		return
 	}
-	logging.Trace(nil, "IdForNewKey: Inserted new nextid: %v for kind: %v (shard: %v)",
+	log.Debug(nil, "IdForNewKey: Inserted new nextid: %v for kind: %v (shard: %v)",
 		nextid, ikind, x.Shard)
 	x.Local = nextid
 	return
@@ -127,7 +127,7 @@ func (l *backend) IdForNewKey(ikind uint8, x *EntityIdParts) (err error) {
 func (l *backend) Query(args *QueryArgs, qs *QueryIterResult) (err error) {
 	defer errorutil.OnError(&err)
 	pkey, kind, opts, filters := args.ParentKey, args.Kind, args.Opts, args.Filters
-	logging.Trace(nil, "Running Query: shard %d, pkey: %v, kind: %v, opts: %v, filters: %v",
+	log.Debug(nil, "Running Query: shard %d, pkey: %v, kind: %v, opts: %v, filters: %v",
 		l.shardId, pkey, kind, opts, filters)
 	//currently, ndb only supports basic queries
 	//  - no inequality filters (except for last filter)
@@ -148,7 +148,7 @@ func (l *backend) Query(args *QueryArgs, qs *QueryIterResult) (err error) {
 	withCursorQuery := opts != nil && opts.StartCursor != ""
 	if ancestorOnlyQuery {
 		irpfx = pkey.Bytes()
-		logging.Trace(nil, "Ancestor Query using scan prefix: %v", irpfx)
+		log.Debug(nil, "Ancestor Query using scan prefix: %v", irpfx)
 	} else if withCursorQuery {
 		if irpfx, err = Base64Enc.DecodeString(opts.StartCursor); err != nil {
 			return
@@ -186,7 +186,7 @@ func (l *backend) Query(args *QueryArgs, qs *QueryIterResult) (err error) {
 		}
 		//construct a scan prefix from the filters
 		irpfx = indexRowBytes(nil, cindxs[0], nil, cty.KindId, fnames, fvalues)
-		logging.Trace(nil, "Index Query using scan prefix: %v", irpfx)
+		log.Debug(nil, "Index Query using scan prefix: %v", irpfx)
 
 		if len(filters) > 0 {
 			lastFilterOp = filters[len(filters)-1].Op
@@ -203,7 +203,7 @@ func (l *backend) Query(args *QueryArgs, qs *QueryIterResult) (err error) {
 		limit = uint16(l.qlimitmax)
 	}
 
-	logging.Trace(nil, "Will Now send request to ndbserver: lastFilterOp: [%v], %v", lastFilterOp, irpfx)
+	log.Debug(nil, "Will Now send request to ndbserver: lastFilterOp: [%v], %v", lastFilterOp, irpfx)
 
 	var xRes *C.slice_bytes_t
 	var xNumRes C.size_t
@@ -227,7 +227,7 @@ func (l *backend) Query(args *QueryArgs, qs *QueryIterResult) (err error) {
 		C.size_t(limit),
 		&xRes, &xNumRes, xErr)
 	defer C.ndb_release(&xReqKey, 1)
-	logging.Trace(nil, "C.ndb_query completed (with %d results) in %v", xNumRes, time.Since(time0))
+	log.Debug(nil, "C.ndb_query completed (with %d results) in %v", xNumRes, time.Since(time0))
 	if xErr != nil {
 		err = errorutil.String(C.GoStringN(xErr.v, C.int(xErr.len)))
 		return
@@ -235,19 +235,19 @@ func (l *backend) Query(args *QueryArgs, qs *QueryIterResult) (err error) {
 
 	if xRes != nil && xNumRes > 0 {
 		var xResGo []C.slice_bytes_t
-		logging.Trace(nil, "Server.Query: xRes: %p, xRes64bit: 0x%x", xRes, *(*uint64)(unsafe.Pointer(xRes)))
+		log.Debug(nil, "Server.Query: xRes: %p, xRes64bit: 0x%x", xRes, *(*uint64)(unsafe.Pointer(xRes)))
 		c2goArray(unsafe.Pointer(&xResGo), unsafe.Pointer(xRes), int(xNumRes))
 		for i := 0; i < int(xNumRes); i++ {
 			// convert to Go bytes so we can send it upwards and free c memory
-			// logging.Trace(nil, "Server.Query: %d, arr: %p, %v", i, &xResGo[i], xResGo[i])
+			// log.Debug(nil, "Server.Query: %d, arr: %p, %v", i, &xResGo[i], xResGo[i])
 			res1 := C.GoBytes(unsafe.Pointer(xResGo[i].v), C.int(xResGo[i].len))
 			qs.Rows = append(qs.Rows, res1)
-			logging.Trace(nil, "Server.Query: %d, arr: %p, len: %d, v: %v, val: 0x%x",
+			log.Debug(nil, "Server.Query: %d, arr: %p, len: %d, v: %v, val: 0x%x",
 				i, &xResGo[i], xResGo[i].len, xResGo[i].v, res1)
 		}
 	}
 
-	logging.Trace(nil, "Server.Query: Retrieved %v results. Error: %v",
+	log.Debug(nil, "Server.Query: Retrieved %v results. Error: %v",
 		len(qs.Rows), err != nil)
 	return
 }
@@ -289,7 +289,7 @@ func (l *backend) svrGet(nkss []*Key, bkss [][]byte, errIfNotFound bool, res *Ge
 	time0 := time.Now()
 	xReqKey := C.ndb_get_multi(l.db, C.size_t(len(bkss)), &ckeys[0], &xRes, &xErr)
 	defer C.ndb_release(&xReqKey, 1)
-	logging.Trace(nil, "C.ndb_get_multi completed in %v", time.Since(time0))
+	log.Debug(nil, "C.ndb_get_multi completed in %v", time.Since(time0))
 
 	res.Errors = make([]string, len(bkss))
 	res.Values = make([][]byte, len(bkss))
@@ -305,12 +305,12 @@ func (l *backend) svrGet(nkss []*Key, bkss [][]byte, errIfNotFound bool, res *Ge
 	var xResGoBytes [][]byte = c2goArrayBytes(xResGo)
 
 	// Note: Don't retain c memory beyond this call. Copy them into res.Errors/res.Values
-	logging.Trace(nil, ">>>>>> Get: Shard: %d, Request for %v keys", l.shardId, len(bkss))
+	log.Debug(nil, ">>>>>> Get: Shard: %d, Request for %v keys", l.shardId, len(bkss))
 	foundErr := false
 	var numSuccess, numFail int
 	for i := range bkss {
 		j := sbytes[i].I
-		logging.Trace(nil, ">>>> Get: Shard: %d, Index: %v/%v, Error: %v", l.shardId, i, j, xErrGoStr[i])
+		log.Debug(nil, ">>>> Get: Shard: %d, Index: %v/%v, Error: %v", l.shardId, i, j, xErrGoStr[i])
 		if xErrGoStr[i] != "" {
 			if xErrGoStr[i] == entityNotFoundMsg {
 				if errIfNotFound {
@@ -339,7 +339,7 @@ func (l *backend) svrGet(nkss []*Key, bkss [][]byte, errIfNotFound bool, res *Ge
 	if !foundErr {
 		res.Errors = nil
 	}
-	logging.Trace(nil, ">>>>> Get: Shard: %d, returning. Success: %v, Fail: %v", l.shardId, numSuccess, numFail)
+	log.Debug(nil, ">>>>> Get: Shard: %d, returning. Success: %v, Fail: %v", l.shardId, numSuccess, numFail)
 	return
 }
 
@@ -405,7 +405,7 @@ func (l *backend) SvrPut(keys []*Key, dst [][]byte, dprops []*db.PropertyList,
 ) (err error) {
 	defer errorutil.OnError(&err)
 
-	logging.Trace(nil, "DB.PUT: KEYS: (%d) %v, dst: (%d) %v, dprops: (%d) %v",
+	log.Debug(nil, "DB.PUT: KEYS: (%d) %v, dst: (%d) %v, dprops: (%d) %v",
 		len(keys), keys, len(dst), printf.ValuePrintfer{dst}, len(dprops), printf.ValuePrintfer{dprops})
 
 	hkss := make([][]byte, 0, len(keys)*4)
@@ -422,7 +422,7 @@ func (l *backend) SvrPut(keys []*Key, dst [][]byte, dprops []*db.PropertyList,
 			return
 		}
 		//put actual data
-		// logging.Trace(nil, "Adding write data for: %v", k) //%064b
+		// log.Debug(nil, "Adding write data for: %v", k) //%064b
 		kbs := keys[i].Bytes()
 		hkss = append(hkss, kbs)
 		hvss = append(hvss, dst[i])
@@ -452,7 +452,7 @@ func (l *backend) SvrPut(keys []*Key, dst [][]byte, dprops []*db.PropertyList,
 					irnvg := li.subset(nil, tyin3).newIndexRowNameValueGen(nil)
 					for pvalues := irnvg.first(); pvalues != nil; pvalues = irnvg.next() {
 						irbs5 := indexRowBytes(nil, tyin3, kbs, kp.Kind, irnvg.pnames(), pvalues)
-						// logging.Trace(nil, "irbs5: %v", irbs5)
+						// log.Debug(nil, "irbs5: %v", irbs5)
 						hkss = append(hkss, irbs5)
 						hvss = append(hvss, []byte{0})
 						irbsbs = append(irbsbs, irbs5)
@@ -473,9 +473,9 @@ func (l *backend) SvrPut(keys []*Key, dst [][]byte, dprops []*db.PropertyList,
 		return
 	}
 
-	logging.Trace(nil, "Will now write to ndb")
+	log.Debug(nil, "Will now write to ndb")
 	err = l.svrUpdate(hkss, hvss, hdss)
-	logging.Trace(nil, "Write to ndb: DONE")
+	log.Debug(nil, "Write to ndb: DONE")
 	return
 }
 
@@ -504,7 +504,7 @@ func (l *backend) svrUpdate(putkeys [][]byte, putvalues [][]byte, delkeys [][]by
 		xDels0, C.size_t(len(xDels)),
 		xErr)
 	defer C.ndb_release(&xReqKey, 1)
-	logging.Trace(nil, "C.ndb_update completed in %v", time.Since(time0))
+	log.Debug(nil, "C.ndb_update completed in %v", time.Since(time0))
 
 	if xErr != nil {
 		err = errorutil.String(C.GoStringN(xErr.v, C.int(xErr.len)))
@@ -530,7 +530,7 @@ func (l *backend) nextLocalId(bs []byte) (nextid uint32, err error) {
 		&xVal,
 		xErr)
 	defer C.ndb_release(&xReqKey, 1)
-	logging.Trace(nil, "C.ndb_incr_decr completed in %v", time.Since(time0))
+	log.Debug(nil, "C.ndb_incr_decr completed in %v", time.Since(time0))
 
 	if xErr != nil {
 		err = errorutil.String(C.GoStringN(xErr.v, C.int(xErr.len)))
@@ -579,22 +579,22 @@ func SetupRpcServer(rpcsvr *rpc.Server, ss *Server, qlimitmax uint16, indexes ..
 
 	if checkNoopSpeedInCAndGo {
 		for i := 0; i < 4; i++ {
-			logging.Trace(nil, "====== Checking Noop Speed In C And Go: %d ======", i)
+			log.Debug(nil, "====== Checking Noop Speed In C And Go: %d ======", i)
 			time0 = time.Now()
-			logging.Trace(nil, "go <nothing> completed in %s", time.Since(time0))
+			log.Debug(nil, "go <nothing> completed in %s", time.Since(time0))
 			time0 = time.Now()
 			serverNoop()
-			logging.Trace(nil, "go serverNoop() completed in %s", time.Since(time0))
+			log.Debug(nil, "go serverNoop() completed in %s", time.Since(time0))
 			time0 = time.Now()
 			C.ndb_noop()
-			logging.Trace(nil, "c ndb_noop() completed in %s", time.Since(time0))
+			log.Debug(nil, "c ndb_noop() completed in %s", time.Since(time0))
 		}
 	}
 
 	if runCNdbInit {
 		time0 = time.Now()
 		C.ndb_init()
-		logging.Trace(nil, "c ndb_init() completed in %s", time.Since(time0))
+		log.Debug(nil, "c ndb_init() completed in %s", time.Since(time0))
 	}
 
 	for i := uint16(0); i < ss.Shards.Num; i++ {
@@ -610,14 +610,14 @@ func SetupRpcServer(rpcsvr *rpc.Server, ss *Server, qlimitmax uint16, indexes ..
 		xdirh := (*reflect.StringHeader)(unsafe.Pointer(&xdir))
 		cdir := C.slice_bytes_t{len: C.size_t(len(xdir)), v: (*C.char)(unsafe.Pointer(xdirh.Data))}
 		openDbKeys = append(openDbKeys, C.ndb_open(cdir, &xDb, xErr))
-		logging.Trace(nil, "C.ndb_open completed in %v", time.Since(time0))
+		log.Debug(nil, "C.ndb_open completed in %v", time.Since(time0))
 		if xErr != nil {
-			logging.Error(nil, "Error opening ndb db: %s", C.GoStringN(xErr.v, C.int(xErr.len)))
+			log.Error(nil, "Error opening ndb db: %s", C.GoStringN(xErr.v, C.int(xErr.len)))
 			continue
 		}
 
 		// backendDbs = append(backendDbs, &xDb)
-		logging.Trace(nil, "Opened ndb db: %s", xdir)
+		log.Debug(nil, "Opened ndb db: %s", xdir)
 		be := &backend{
 			qlimitmax: qlimitmax,
 			types:     ti,
@@ -654,7 +654,7 @@ func c2goArray(goSlice, cArray unsafe.Pointer, length int) {
 	sliceHeader.Cap = length
 	sliceHeader.Len = length
 	sliceHeader.Data = uintptr(cArray)
-	logging.Trace(nil, "c2goArray: Data: 0x%x", sliceHeader.Data)
+	log.Debug(nil, "c2goArray: Data: 0x%x", sliceHeader.Data)
 }
 
 func c2goArrayBytes(c []C.slice_bytes_t) (s [][]byte) {

@@ -1,6 +1,7 @@
 package ndb
 
 import (
+	"context"
 	"math"
 	"sort"
 
@@ -9,7 +10,6 @@ import (
 
 	"github.com/ugorji/go-common/combinationgen"
 	"github.com/ugorji/go-serverapp/db"
-	"github.com/ugorji/go-common/logging"
 	"github.com/ugorji/go-common/printf"
 )
 
@@ -30,14 +30,14 @@ type dbIndex struct {
 	V []interface{}
 }
 
-func newDbIndex(ctxId interface{}, vdprops []db.Property) (li *dbIndex) {
+func newDbIndex(ctxId context.Context, vdprops []db.Property) (li *dbIndex) {
 	li = new(dbIndex)
-	logging.Trace(ctxId, "indexRowNameValueGen: vdprops: %#v", vdprops)
+	log.Debug(ctxId, "indexRowNameValueGen: vdprops: %#v", vdprops)
 
 	var kmult []string
 	var kall []string
 	for _, kv9 := range vdprops {
-		logging.Trace(ctxId, "Looking for multiples: found: %v", kv9.Name)
+		log.Debug(ctxId, "Looking for multiples: found: %v", kv9.Name)
 		if i9, v9 := li.get(kv9.Name); v9 != nil {
 			if v9s, ok2 := v9.([]interface{}); ok2 {
 				v9s = append(v9s, kv9.Value)
@@ -53,12 +53,12 @@ func newDbIndex(ctxId interface{}, vdprops []db.Property) (li *dbIndex) {
 		}
 	}
 
-	logging.Trace(ctxId, "indexRowNameValueGen: li: %#v", li)
+	log.Debug(ctxId, "indexRowNameValueGen: li: %#v", li)
 	sort.StringSlice(kall).Sort()
 	kmultss := sort.StringSlice(kmult)
 	kmultss.Sort()
-	logging.Trace(ctxId, "indexRowNameValueGen: kmult: %#v", kmult)
-	logging.Trace(ctxId, "indexRowNameValueGen: kall: %#v", kall)
+	log.Debug(ctxId, "indexRowNameValueGen: kmult: %#v", kmult)
+	log.Debug(ctxId, "indexRowNameValueGen: kall: %#v", kall)
 
 	knames := make([]string, len(kall))
 	kprops := make([]interface{}, len(kall))
@@ -104,8 +104,8 @@ func (li *dbIndex) numSingles() (i int) {
 	return
 }
 
-func (li *dbIndex) subset(ctxId interface{}, c *Index) (li2 *dbIndex) {
-	logging.Trace(ctxId, "indexRowNameValueGen: indexprops: %s", printf.ValuePrintfer{c.Properties})
+func (li *dbIndex) subset(ctxId context.Context, c *Index) (li2 *dbIndex) {
+	log.Debug(ctxId, "indexRowNameValueGen: indexprops: %s", printf.ValuePrintfer{c.Properties})
 	li2 = new(dbIndex)
 	for _, cp := range c.Properties {
 		i, v := li.get(cp.Name)
@@ -115,7 +115,7 @@ func (li *dbIndex) subset(ctxId interface{}, c *Index) (li2 *dbIndex) {
 	return
 }
 
-func (li *dbIndex) newIndexRowNameValueGen(ctxId interface{}) (irnvg *indexRowNameValueGen) {
+func (li *dbIndex) newIndexRowNameValueGen(ctxId context.Context) (irnvg *indexRowNameValueGen) {
 	var cg *combinationgen.T
 	ns := li.numSingles()
 	kprops := make([]interface{}, len(li.V))
@@ -133,11 +133,11 @@ func (li *dbIndex) newIndexRowNameValueGen(ctxId interface{}) (irnvg *indexRowNa
 		props: kprops,
 		cg:    cg,
 	}
-	logging.Trace(ctxId, "indexRowNameValueGen: 9. %#v", irnvg)
+	log.Debug(ctxId, "indexRowNameValueGen: 9. %#v", irnvg)
 	return
 }
 
-func getIndexes(ctxId interface{}, cfg *typeInfo, c byte, ikind uint8, kind string, propnames []string) (
+func getIndexes(ctxId context.Context, cfg *typeInfo, c byte, ikind uint8, kind string, propnames []string) (
 	ty *Type, tyins []*Index) {
 	var indexNames []string
 	for _, ty0 := range cfg.Types {
@@ -189,16 +189,16 @@ func getIndexes(ctxId interface{}, cfg *typeInfo, c byte, ikind uint8, kind stri
 			}
 		}
 	}
-	logging.Trace(ctxId, "(%q) For kind: %v, PropNames: %v, Returning Indexes: %v", c, kind, propnames, indexNames)
+	log.Debug(ctxId, "(%q) For kind: %v, PropNames: %v, Returning Indexes: %v", c, kind, propnames, indexNames)
 	return
 }
 
-func indexRowBytes(ctxId interface{}, tyin3 *Index, ikeybs []byte, ikind uint8,
+func indexRowBytes(ctxId context.Context, tyin3 *Index, ikeybs []byte, ikind uint8,
 	propnames []string, propvals []interface{},
 ) (irbs5 []byte) {
 	ipfx := uint8(D_INDEX) << 4
 	if ikeybs != nil {
-		logging.Trace(ctxId, ">>>>>>>> indexRowBytes: Adding index with prefix: %v, from ", ipfx)
+		log.Debug(ctxId, ">>>>>>>> indexRowBytes: Adding index with prefix: %v, from ", ipfx)
 	}
 	// Cannot use this, because the prefix is used to do a scan.
 	// switch len(ikeybs) {
@@ -271,7 +271,7 @@ func indexRowBytes(ctxId interface{}, tyin3 *Index, ikeybs []byte, ikind uint8,
 		irbs5 = append(irbs5, byte(0))
 		irbs5 = append(irbs5, ikeybs...)
 	}
-	logging.Trace(ctxId, "IndexRowBytes For Index: %v, Kind: %v, Props: %v, Values: %v. Returning: %v",
+	log.Debug(ctxId, "IndexRowBytes For Index: %v, Kind: %v, Props: %v, Values: %v. Returning: %v",
 		tyin3.Name, tyin3.Kind, propnames, propvals, irbs5)
 	return
 }

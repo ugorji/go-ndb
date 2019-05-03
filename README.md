@@ -345,7 +345,7 @@ func CloseBackends() error
 func KindAndShapeId(types []*Type, kind, shape string) (ikind uint8, ishp uint8)
 func SetupRpcServer(rpcsvr *rpc.Server, ss *Server, qlimitmax uint16, indexes ...*Index) error
 func UpdateEntityIdFromKey(d interface{}, intId int64) (err error)
-func ValidateEntityData(ctxId interface{}, dst interface{}, k KeyParts) (err error)
+func ValidateEntityData(ctxId app.Context, dst interface{}, k KeyParts) (err error)
 type Blob struct{ ... }
 type Cfg struct{ ... }
     func ReadConfig(cfgFile string) (cfg *Cfg, err error)

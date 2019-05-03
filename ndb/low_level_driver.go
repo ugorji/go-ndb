@@ -13,11 +13,10 @@ import (
 	"github.com/ugorji/go-serverapp/app"
 	"github.com/ugorji/go/codec"
 	"github.com/ugorji/go-serverapp/db"
-	"github.com/ugorji/go-common/logging"
+	"github.com/ugorji/go-common/errorutil"
 	"github.com/ugorji/go-common/printf"
 	"github.com/ugorji/go-common/safestore"
 	"github.com/ugorji/go-common/simpleblobstore"
-	"github.com/ugorji/go-common/errorutil"
 )
 
 const (
@@ -81,7 +80,7 @@ func (l *LowLevelDriver) updateShardIdForKind(shardId *uint16, kindid uint8) {
 			if ty.KindId == kindid {
 				if ty.tm.Pinned {
 					*shardId = pinnedShardId
-					logging.Trace(nil, "Set shardId to %d, due to pinned kind: %s", pinnedShardId, ty.Kind)
+					log.Debug(nil, "Set shardId to %d, due to pinned kind: %s", pinnedShardId, ty.Kind)
 				}
 				break
 			}
@@ -90,7 +89,7 @@ func (l *LowLevelDriver) updateShardIdForKind(shardId *uint16, kindid uint8) {
 	if *shardId == 0 {
 		*shardId = uint16(Rand.Int31n(int32(l.newEntityShard.Num))) + l.newEntityShard.Min
 	}
-	logging.Trace(nil, ">>>> updateShardIdForKind: kind: %d, shardId, %d", kindid, *shardId)
+	log.Debug(nil, ">>>> updateShardIdForKind: kind: %d, shardId, %d", kindid, *shardId)
 }
 
 func (l *LowLevelDriver) server(shardId uint16) (ss *Server, err error) {
@@ -142,7 +141,7 @@ func (l *LowLevelDriver) call(shardId uint16, methodName string, args interface{
 	// if shardId == 0 && methodName == "IdForNewKey" {
 	// 	shardId = uint16(Rand.Int31n(int32(l.newEntityShard.Num))) + l.newEntityShard.Min
 	// }
-	logging.Trace(nil, ">>>> call: shardId: %d, method: %s", shardId, methodName)
+	log.Debug(nil, ">>>> call: shardId: %d, method: %s", shardId, methodName)
 	c, err := l.client(shardId)
 	if err != nil {
 		return
@@ -259,11 +258,12 @@ func (l *LowLevelDriver) GetInfoFromKey(c app.Context, key app.Key,
 	defer errorutil.OnError(&err)
 	ikey := key.(*Key).V
 	kp := GetKeyParts(ikey)
-	logging.Trace(c, "GetInfoFromKey: KeyParts: %#v", kp)
+	cctx := app.CtxCtx(c)
+	log.Debug(cctx, "GetInfoFromKey: KeyParts: %#v", kp)
 	for _, ty := range l.ti {
 		if ty.KindId == kp.Kind && ty.ShapeId == kp.Shape {
 			kind, shape = ty.Kind, ty.Shape
-			logging.Trace(c, "GetInfoFromKey: Found match: kind: %v (%v), shape: %v (%v)",
+			log.Debug(cctx, "GetInfoFromKey: Found match: kind: %v (%v), shape: %v (%v)",
 				kind, kp.Kind, shape, kp.Shape)
 			break
 		}
@@ -273,7 +273,7 @@ func (l *LowLevelDriver) GetInfoFromKey(c app.Context, key app.Key,
 		return
 	}
 	intId = kp.EntityId()
-	logging.Trace(c, "GetInfoFromKey: kind %v, shape %v, intId %v, err: %v", kind, shape, intId, err)
+	log.Debug(cctx, "GetInfoFromKey: kind %v, shape %v, intId %v, err: %v", kind, shape, intId, err)
 	return
 }
 
@@ -282,7 +282,8 @@ func (l *LowLevelDriver) GetInfoFromKey(c app.Context, key app.Key,
 func (l *LowLevelDriver) NewKey(ctx app.Context, kind string, shape string, intId int64, pkey app.Key,
 ) (k app.Key, err error) {
 	defer errorutil.OnError(&err)
-	logging.Trace(ctx, "NewKey: kind: %v, shape: %v, Id: %v, pkey: %v", kind, shape, intId, pkey)
+	cctx := app.CtxCtx(ctx)
+	log.Debug(cctx, "NewKey: kind: %v, shape: %v, Id: %v, pkey: %v", kind, shape, intId, pkey)
 	kp := KeyParts{
 		Discrim: D_ENTITY,
 		Entry:   E_DATA,
@@ -298,7 +299,7 @@ func (l *LowLevelDriver) NewKey(ctx app.Context, kind string, shape string, intI
 	}
 	if intId > 0 {
 		kp.EntityIdParts = GetEntityIdParts(uint64(intId))
-		logging.Trace(ctx, "NewKeyComponents: From intId: %v, got ishrd: %v, ilocid: %v, ==> %v",
+		log.Debug(cctx, "NewKeyComponents: From intId: %v, got ishrd: %v, ilocid: %v, ==> %v",
 			intId, kp.Shard, kp.Local, kp.EntityId())
 	} else if intId <= 0 {
 		// TODO: Validate this. Id == 0 also means get new id.
@@ -308,7 +309,7 @@ func (l *LowLevelDriver) NewKey(ctx app.Context, kind string, shape string, intI
 		// 		if ty.KindId == kp.Kind {
 		// 			if ty.tm.Pinned {
 		// 				idargs.IshardId = pinnedShardId
-		// 				logging.Trace(nil, "Set shard to 1, due to pinned %s", ty.Kind)
+		// 				log.Debug(nil, "Set shard to 1, due to pinned %s", ty.Kind)
 		// 			}
 		// 			break
 		// 		}
@@ -316,7 +317,7 @@ func (l *LowLevelDriver) NewKey(ctx app.Context, kind string, shape string, intI
 		// }
 		if npkey != nil {
 			idargs.IshardId = GetKeyParts(npkey.V).Shard
-			logging.Trace(ctx, "NewKeyComponents: Create Id in same shard (%v) as parent. Parent Bytes: %v",
+			log.Debug(cctx, "NewKeyComponents: Create Id in same shard (%v) as parent. Parent Bytes: %v",
 				idargs.IshardId, npkey.Bytes())
 		}
 		l.updateShardIdForKind(&idargs.IshardId, idargs.Ikind)
@@ -329,7 +330,7 @@ func (l *LowLevelDriver) NewKey(ctx app.Context, kind string, shape string, intI
 		Parent: npkey,
 		V:      kp.V(),
 	}
-	logging.Trace(ctx, "ndb.NewKey: Returning Shard: %d, Key: %v, Bytes: %v", kp.Shard, nk, nk.Bytes())
+	log.Debug(cctx, "ndb.NewKey: Returning Shard: %d, Key: %v, Bytes: %v", kp.Shard, nk, nk.Bytes())
 	k = nk
 	return
 }
@@ -377,6 +378,7 @@ func (l *LowLevelDriver) Query(ctx app.Context, parent app.Key,
 		shape = opts.Shape
 	}
 
+	cctx := app.CtxCtx(ctx)
 	//Do this Query lazily.
 	//QuerySupport will call nextFn iff it didn't find results in cache.
 	//nextFn will execute query on first request.
@@ -405,18 +407,18 @@ func (l *LowLevelDriver) Query(ctx app.Context, parent app.Key,
 				for _, bs := range qs.Rows {
 					ress = append(ress, fmt.Sprintf("0x%x", bs))
 				}
-				logging.Trace(ctx, "ndb.Driver: Query Results: %v", ress)
+				log.Debug(cctx, "ndb.Driver: Query Results: %v", ress)
 			} else {
-				logging.Trace(ctx, "ndb.Driver: Error from Backend Query: %v", err)
+				log.Debug(cctx, "ndb.Driver: Error from Backend Query: %v", err)
 				err3 = err
 				return
 			}
-			logging.Trace(ctx, "Query Results: pkey: %v, kind: %v, qs: %v", npkey, kind, qs)
+			log.Debug(cctx, "Query Results: pkey: %v, kind: %v, qs: %v", npkey, kind, qs)
 			qsIterFn = qs.IterFn()
 		}
 		return qsIterFn()
 	}
-	logging.Trace(ctx, "ndb.Driver: Calling QuerySupport: kind: %v, shape: %v", kind, shape)
+	log.Debug(cctx, "ndb.Driver: Calling QuerySupport: kind: %v, shape: %v", kind, shape)
 	return db.QuerySupport(ctx, qString, kind, shape, nextFn)
 }
 
@@ -430,7 +432,8 @@ func (l *LowLevelDriver) DatastoreGet(ctx app.Context, keys []app.Key, dst []int
 	if err != nil {
 		return
 	}
-	//logging.Trace(ctx, ">>>>>>>> res: %v", logging.ValuePrinter{res})
+	cctx := app.CtxCtx(ctx)
+	//log.Debug(cctx, ">>>>>>>> res: %v", logging.ValuePrinter{res})
 	foundNonNilErr := false
 	errs := make([]error, len(keys))
 	for _, v := range m0 {
@@ -441,7 +444,7 @@ func (l *LowLevelDriver) DatastoreGet(ctx app.Context, keys []app.Key, dst []int
 				errs[idx] = maybeNotFoundError(gr.Errors[i])
 			} else {
 				errs[idx] = db.Codec.DecodeBytes(gr.Values[i], dst[idx])
-				logging.Trace(ctx, ">>>>>>>> (len: %v, err: %v) res: after unmarshal: %v",
+				log.Debug(cctx, ">>>>>>>> (len: %v, err: %v) res: after unmarshal: %v",
 					len(gr.Values[i]), errs[idx], printf.ValuePrintfer{dst[idx]})
 			}
 			if errs[idx] != nil && !foundNonNilErr {
@@ -455,7 +458,7 @@ func (l *LowLevelDriver) DatastoreGet(ctx app.Context, keys []app.Key, dst []int
 	// 		errs[i] = maybeNotFoundError(res.Errors[i])
 	// 	} else {
 	// 		errs[i] = db.Codec.DecodeBytes(res.Values[i], dst[i])
-	// 		logging.Trace(ctx, ">>>>>>>> (len: %v, err: %v) res: after unmarshal: %v",
+	// 		log.Debug(cctx, ">>>>>>>> (len: %v, err: %v) res: after unmarshal: %v",
 	// 			len(res.Values[i]), errs[i], printf.ValuePrintfer{dst[i]})
 	// 	}
 	// 	if errs[i] != nil && !foundNonNilErr {
@@ -497,7 +500,7 @@ func (l *LowLevelDriver) DatastorePut(ctx app.Context, keys []app.Key, dst []int
 			if kp.Shard == 0 {
 				if tm, err2 := db.GetStructMeta(dst[i]); err2 == nil && tm != nil && tm.Pinned {
 					kp.Shard = pinnedShardId
-					logging.Trace(nil, "Set shard to 1, due to pinned %T", dst[i])
+					log.Debug(nil, "Set shard to 1, due to pinned %T", dst[i])
 				}
 			}
 			// get new key from datastore
@@ -513,7 +516,7 @@ func (l *LowLevelDriver) DatastorePut(ctx app.Context, keys []app.Key, dst []int
 			}
 		} else {
 			// validate that real keys previously got from datastore are for this kind of component
-			if err = ValidateEntityData(ctx.Id(), dst[i], kp); err != nil {
+			if err = ValidateEntityData(ctx, dst[i], kp); err != nil {
 				return
 			}
 		}
