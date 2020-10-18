@@ -341,14 +341,18 @@ const E_METADATA ...
 const D_INDEX ...
 var RpcCodecHandle ...
 var Base64Enc = base64.URLEncoding ...
-func CloseBackends() error
+func CloseBackends() (err error)
+func DecodeKey(s string) (k *Key, err error)
 func KindAndShapeId(types []*Type, kind, shape string) (ikind uint8, ishp uint8)
-func SetupRpcServer(rpcsvr *rpc.Server, ss *Server, qlimitmax uint16, indexes ...*Index) error
+func NewKey(uu ...uint64) (k *Key, err error)
+func NewLowLevelDriver(cfg *Cfg, uuid string, indexes ...*Index) (l *LowLevelDriver, err error)
+func ParseKeyBytes(bs []byte) (k *Key, err error)
+func ReadConfig(cfgFile string) (cfg *Cfg, err error)
+func SetupRpcServer(rpcsvr *rpc.Server, ss *Server, qlimitmax uint16, indexes ...*Index) (err error)
 func UpdateEntityIdFromKey(d interface{}, intId int64) (err error)
 func ValidateEntityData(ctxId app.Context, dst interface{}, k KeyParts) (err error)
 type Blob struct{ ... }
 type Cfg struct{ ... }
-    func ReadConfig(cfgFile string) (cfg *Cfg, err error)
 type Context struct{ ... }
 type EntityIdParts struct{ ... }
     func GetEntityIdParts(v uint64) (x EntityIdParts)
@@ -358,13 +362,9 @@ type Index struct{ ... }
 type IndexProp struct{ ... }
 type KV struct{ ... }
 type Key struct{ ... }
-    func DecodeKey(s string) (k *Key, err error)
-    func NewKey(uu ...uint64) (k *Key, err error)
-    func ParseKeyBytes(bs []byte) (k *Key, err error)
 type KeyParts struct{ ... }
     func GetKeyParts(ikey uint64) (x KeyParts)
 type LowLevelDriver struct{ ... }
-    func NewLowLevelDriver(cfg *Cfg, uuid string, indexes ...*Index) (l *LowLevelDriver, err error)
 type NewIdArgs struct{ ... }
 type PutArgs struct{ ... }
 type QueryArgs struct{ ... }
