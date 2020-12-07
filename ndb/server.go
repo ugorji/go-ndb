@@ -5,7 +5,7 @@
 
 package ndb
 
-// This whole file is VERY UNSAFE. CARE IS TAKEN SERIOUSLY.
+// This whole file is VERY UNSAFE as it uses cgo. CARE IS TAKEN SERIOUSLY.
 //
 // This tries to use cgo efficiently.
 // We will use unsafe extensively to allow us share memory between C and Go.
@@ -13,8 +13,17 @@ package ndb
 //
 // All C calls are coarse calls. This way, chatter and cgo boundary crossing
 // costs are managed.
-//
+
 // This file depends on libndb.so created from <ugorji/ndb> c/c++ package.
+// We expect that any build will pass CGO_CFLAGS and CGO_LDFLAGS as needed.
+//
+// For example:
+//    CGO_LDFLAGS="-L$(CURDIR)/../ndb" CGO_CFLAGS="-I$(CURDIR)/../ndb/ugorji/ndb -I$(CURDIR)/../cc-common" go install .
+
+// #cgo CPPFLAGS: -fPIC -g
+// #cgo LDFLAGS: -lndb -g
+// #include <ndb-c.h>
+import "C"
 
 import (
 	"bytes"
@@ -31,22 +40,9 @@ import (
 
 	"github.com/ugorji/go-serverapp/app"
 	"github.com/ugorji/go-serverapp/db"
-	"github.com/ugorji/go-common/logging"
-	"github.com/ugorji/go-common/printf"
 	"github.com/ugorji/go-common/errorutil"
+	"github.com/ugorji/go-common/printf"
 )
-
-// No need to define these here, since all c code already compiled.
-// // #include <stddef.h>
-// // #cgo CFLAGS: -std=c99
-// // #cgo CXXFLAGS: -std=c++11
-
-// NOTE: ndb.h and ndb shared library are expected to be found in the current directory.
-
-// #cgo CPPFLAGS: -fPIC -I${SRCDIR} -g
-// #cgo LDFLAGS: -lpthread -lglog -lrocksdb -lsnappy -lbz2 -lz -L${SRCDIR} -lndb -g
-// #include <ndb.h>
-import "C"
 
 var basicQueriesOnlyErr error = errorutil.String(
 	"Queries are not supported for inequality filters (except last filter) or sort order")
