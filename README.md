@@ -1,6 +1,6 @@
 # go-ndb/ndb
 
-This repository contains the `go-ndb/ndb` library (or command).
+This repository contains the `go-ndb/ndb` library.
 
 To install:
 
